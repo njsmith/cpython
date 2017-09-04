@@ -24,7 +24,7 @@ def raise_after_instruction(target_function, target_instruction):
         # TODO: Add `f_traceall` API to request tracing for every opcode
         # frame.f_traceall = True
         if frame.f_lasti >= target_instruction:
-            raise RuntimeError(f"Failing after {target_instruction}")
+            raise InjectedException(f"Failing after {target_instruction}")
         return inject_exception
     sys.settrace(inject_exception)
 
@@ -82,7 +82,7 @@ class CheckSignalSafety(unittest.TestCase):
                 print(f"Raising exception after {target_instruction}")
             try:
                 traced_function()
-            except RuntimeError:
+            except InjectedException:
                 # key invariant: if we entered the CM, we exited it
                 self.assert_cm_exited(tracking_cm, target_instruction, traced_function)
             else:
@@ -112,7 +112,7 @@ class CheckSignalSafety(unittest.TestCase):
                 print(f"Raising exception after {target_instruction}")
             try:
                 loop.run_until_complete(traced_coroutine())
-            except RuntimeError:
+            except InjectedException:
                 # key invariant: if we entered the CM, we exited it
                 self.assert_cm_exited(tracking_cm, target_instruction, traced_coroutine)
             else:
