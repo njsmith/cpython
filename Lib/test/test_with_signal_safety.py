@@ -21,8 +21,7 @@ def raise_after_instruction(target_function, target_instruction):
     def inject_exception(frame, event, arg):
         if frame.f_code is not target_code:
             return
-        # TODO: Add `f_traceall` API to request tracing for every opcode
-        # frame.f_traceall = True
+        frame.f_trace_opcodes = True
         if frame.f_lasti >= target_instruction:
             raise InjectedException(f"Failing after {target_instruction}")
         return inject_exception
