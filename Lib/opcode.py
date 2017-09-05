@@ -215,4 +215,6 @@ def_op('BUILD_TUPLE_UNPACK_WITH_CALL', 158)
 name_op('LOAD_METHOD', 160)
 def_op('CALL_METHOD', 161)
 
+jrel_op('DEFER_PENDING_UNTIL', 162) # When to resume pending call processing
+
 del def_op, name_op, jrel_op, jabs_op

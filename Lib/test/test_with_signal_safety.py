@@ -23,7 +23,8 @@ def raise_after_instruction(target_function, target_instruction):
             return
         frame.f_trace_opcodes = True
         if frame.f_lasti >= target_instruction:
-            raise InjectedException(f"Failing after {target_instruction}")
+            if frame.f_lasti > frame.f_pendingi:
+                raise InjectedException(f"Failing after {frame.f_lasti}")
         return inject_exception
     sys.settrace(inject_exception)
 
@@ -72,13 +73,9 @@ class CheckSignalSafety(unittest.TestCase):
             return
         target_instruction = -1
         num_instructions = len(traced_function.__code__.co_code) - 2
-        import dis
-        dis.dis(traced_function)
         while target_instruction < num_instructions:
             target_instruction += 1
             raise_after_instruction(traced_function, target_instruction)
-            if verbose:
-                print(f"Raising exception after {target_instruction}")
             try:
                 traced_function()
             except InjectedException:
@@ -107,8 +104,6 @@ class CheckSignalSafety(unittest.TestCase):
         while target_instruction < num_instructions:
             target_instruction += 1
             raise_after_instruction(traced_coroutine, target_instruction)
-            if verbose:
-                print(f"Raising exception after {target_instruction}")
             try:
                 loop.run_until_complete(traced_coroutine())
             except InjectedException:

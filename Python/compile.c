@@ -943,6 +943,8 @@ PyCompile_OpcodeStackEffect(int opcode, int oparg)
             return 0;
         case YIELD_FROM:
             return -1;
+        case DEFER_PENDING_UNTIL:
+            return 0;
         case POP_BLOCK:
             return 0;
         case POP_EXCEPT:
@@ -4194,14 +4196,15 @@ expr_constant(struct compiler *c, expr_ty e)
 static int
 compiler_async_with(struct compiler *c, stmt_ty s, int pos)
 {
-    basicblock *block, *finally;
+    basicblock *block, *finally, *finally_await;
     withitem_ty item = asdl_seq_GET(s->v.AsyncWith.items, pos);
 
     assert(s->kind == AsyncWith_kind);
 
     block = compiler_new_block(c);
     finally = compiler_new_block(c);
-    if (!block || !finally)
+    finally_await = compiler_new_block(c);
+    if (!block || !finally || !finally_await)
         return 0;
 
     /* Evaluate EXPR */
@@ -4210,8 +4213,8 @@ compiler_async_with(struct compiler *c, stmt_ty s, int pos)
     ADDOP(c, BEFORE_ASYNC_WITH);
     ADDOP(c, GET_AWAITABLE);
     ADDOP_O(c, LOAD_CONST, Py_None, consts);
+    ADDOP_JREL(c, DEFER_PENDING_UNTIL, block);
     ADDOP(c, YIELD_FROM);
-
     ADDOP_JREL(c, SETUP_ASYNC_WITH, finally);
 
     /* SETUP_ASYNC_WITH pushes a finally block. */
@@ -4236,6 +4239,7 @@ compiler_async_with(struct compiler *c, stmt_ty s, int pos)
             return 0;
 
     /* End of try block; start the finally block */
+    ADDOP_JREL(c, DEFER_PENDING_UNTIL, finally_await);
     ADDOP(c, POP_BLOCK);
     compiler_pop_fblock(c, FINALLY_TRY, block);
 
@@ -4249,8 +4253,10 @@ compiler_async_with(struct compiler *c, stmt_ty s, int pos)
        opcode. */
     ADDOP(c, WITH_CLEANUP_START);
 
+    ADDOP_JREL(c, DEFER_PENDING_UNTIL, finally_await);
     ADDOP(c, GET_AWAITABLE);
     ADDOP_O(c, LOAD_CONST, Py_None, consts);
+    compiler_use_next_block(c, finally_await);
     ADDOP(c, YIELD_FROM);
 
     ADDOP(c, WITH_CLEANUP_FINISH);
@@ -4324,6 +4330,7 @@ compiler_with(struct compiler *c, stmt_ty s, int pos)
             return 0;
 
     /* End of try block; start the finally block */
+    ADDOP_JREL(c, DEFER_PENDING_UNTIL, finally);
     ADDOP(c, POP_BLOCK);
     compiler_pop_fblock(c, FINALLY_TRY, block);
 

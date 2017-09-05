@@ -586,6 +586,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     int instr_ub = -1, instr_lb = 0, instr_prev = -1;
 
     const _Py_CODEUNIT *first_instr;
+    const _Py_CODEUNIT *handle_pending_after;
     PyObject *names;
     PyObject *consts;
 
@@ -716,6 +717,8 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     } while (0)
 #define JUMPTO(x)       (next_instr = first_instr + (x) / sizeof(_Py_CODEUNIT))
 #define JUMPBY(x)       (next_instr += (x) / sizeof(_Py_CODEUNIT))
+#define DEFERUNTIL(x)   (handle_pending_after = next_instr + (x) / sizeof(_Py_CODEUNIT))
+#define DEFER_OFFSET()  (sizeof(_Py_CODEUNIT) * (int)(handle_pending_after - first_instr))
 
 /* OpCode prediction macros
     Some opcodes tend to come in pairs thus making it possible to
@@ -894,6 +897,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     assert(PyBytes_GET_SIZE(co->co_code) % sizeof(_Py_CODEUNIT) == 0);
     assert(_Py_IS_ALIGNED(PyBytes_AS_STRING(co->co_code), sizeof(_Py_CODEUNIT)));
     first_instr = (_Py_CODEUNIT *) PyBytes_AS_STRING(co->co_code);
+    handle_pending_after = first_instr;
     /*
        f->f_lasti refers to the index of the last instruction,
        unless it's -1 in which case next_instr should be first_instr.
@@ -977,9 +981,12 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
                 */
                 goto fast_next_opcode;
             }
-            if (_Py_atomic_load_relaxed(&pendingcalls_to_do)) {
+            if ((next_instr > handle_pending_after) &&
+                    _Py_atomic_load_relaxed(&pendingcalls_to_do)) {
                 if (Py_MakePendingCalls() < 0)
                     goto error;
+                /* Allow for subsequent jumps backwards in the bytecode */
+                handle_pending_after = first_instr;
             }
             if (_Py_atomic_load_relaxed(&gil_drop_request)) {
                 /* Give another thread a chance */
@@ -3126,6 +3133,12 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
                 PUSH(PyLong_FromLong((long) WHY_SILENCED));
             }
             PREDICT(END_FINALLY);
+            DISPATCH();
+        }
+
+        TARGET(DEFER_PENDING_UNTIL) {
+            DEFERUNTIL(oparg);
+            PREDICT(POP_BLOCK);
             DISPATCH();
         }
 
