@@ -85,7 +85,7 @@ class CheckSignalSafety(unittest.TestCase):
                 self.fail(f"Exception wasn't raised @{target_offset}")
 
 
-    def _test_asynchronous_cm(self):
+    def test_asynchronous_cm(self):
         class AsyncTrackingCM():
             def __init__(self):
                 self.enter_without_exit = None
