@@ -981,12 +981,18 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
                 */
                 goto fast_next_opcode;
             }
-            if ((next_instr > handle_pending_after) &&
-                    _Py_atomic_load_relaxed(&pendingcalls_to_do)) {
-                if (Py_MakePendingCalls() < 0)
-                    goto error;
+            if (handle_pending_after > first_instr) {
+                printf("Pending calls deferred until %lu\n", DEFER_OFFSET());
+            }
+            if (next_instr >= handle_pending_after) {
+                printf("Checking for pending calls: %lu > %lu?\n", INSTR_OFFSET(), DEFER_OFFSET());
                 /* Allow for subsequent jumps backwards in the bytecode */
                 handle_pending_after = first_instr;
+                if (_Py_atomic_load_relaxed(&pendingcalls_to_do)) {
+                    printf("  Processing pending calls\n");
+                    if (Py_MakePendingCalls() < 0)
+                        goto error;
+                }
             }
             if (_Py_atomic_load_relaxed(&gil_drop_request)) {
                 /* Give another thread a chance */

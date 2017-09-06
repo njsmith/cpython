@@ -12,6 +12,7 @@
 #include "structmember.h"
 #include "datetime.h"
 #include "marshal.h"
+#include "frameobject.h"
 #include <signal.h>
 
 #ifdef MS_WINDOWS
@@ -2345,6 +2346,58 @@ PyObject *pending_threadfunc(PyObject *self, PyObject *arg)
     Py_RETURN_TRUE;
 }
 
+/* Helper for test_with_signal_safety that injects errors into the eval loop's
+ * pending call handling at a designated bytecode offset
+ *
+ * The hook args indicate the code object where the pending call should be
+ * injected, the offset where it should be registered, and the callback itself
+ */
+static int
+error_injection_trace(PyObject *hook_args, PyFrameObject *frame,
+                      int what, PyObject *event_arg)
+{
+    PyObject *target_code, *callback;
+    int target_offset;
+
+    if (!PyArg_ParseTuple(hook_args, "OiO:error_injection_trace",
+                          &target_code, &target_offset, &callback)) {
+        PyEval_SetTrace(NULL, NULL);
+        return -1;
+    }
+
+    if (((PyObject *) frame->f_code) == target_code) {
+        printf("Tracing frame of interest\n");
+        frame->f_trace_opcodes = 1;
+        if (what == PyTrace_OPCODE && frame->f_lasti > target_offset) {
+            printf("Adding pending call after %d\n", frame->f_lasti);
+            Py_INCREF(callback);
+            if (Py_AddPendingCall(&_pending_callback, callback) < 0) {
+                printf("Failed to add pending call\n");
+                Py_DECREF(callback);
+                PyEval_SetTrace(NULL, NULL);
+                return -1;
+            }
+            PyEval_SetTrace(NULL, NULL);
+        }
+    }
+    return 0;
+}
+
+PyObject *install_error_injection_hook(PyObject *self, PyObject *args)
+{
+    PyObject *target_code, *target_offset, *callback;
+
+    /* Check the args are as expected */
+    if (!PyArg_UnpackTuple(args, "install_error_injection_hook", 3, 3,
+                           &target_code, &target_offset, &callback)) {
+        return NULL;
+    }
+    printf("Registering trace hook\n");
+
+    PyEval_SetTrace(error_injection_trace, args);
+    Py_RETURN_NONE;
+}
+
 /* Some tests of PyUnicode_FromFormat().  This needs more tests. */
 static PyObject *
 test_string_from_format(PyObject *self, PyObject *args)
@@ -4415,6 +4468,7 @@ static PyMethodDef TestMethods[] = {
     {"unicode_legacy_string",   unicode_legacy_string,           METH_VARARGS},
     {"_test_thread_state",      test_thread_state,               METH_VARARGS},
     {"_pending_threadfunc",     pending_threadfunc,              METH_VARARGS},
+    {"install_error_injection_hook", install_error_injection_hook, METH_VARARGS},
 #ifdef HAVE_GETTIMEOFDAY
     {"profile_int",             profile_int,                     METH_NOARGS},
 #endif
@@ -4933,5 +4987,6 @@ PyInit__testcapi(void)
     TestError = PyErr_NewException("_testcapi.error", NULL, NULL);
     Py_INCREF(TestError);
     PyModule_AddObject(m, "error", TestError);
+
     return m;
 }
