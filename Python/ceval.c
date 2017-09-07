@@ -419,11 +419,13 @@ Py_MakePendingCalls(void)
         PyThread_acquire_lock(pending_lock, WAIT_LOCK);
         j = pendingfirst;
         if (j == pendinglast) {
+            printf("  No pending calls remaining\n");
             func = NULL; /* Queue empty */
         } else {
             func = pendingcalls[j].func;
             arg = pendingcalls[j].arg;
             pendingfirst = (j + 1) % NPENDINGCALLS;
+            printf("  Calling %p(%p)\n", func, arg);
         }
         PyThread_release_lock(pending_lock);
         /* having released the lock, perform the callback */
@@ -982,10 +984,10 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
                 goto fast_next_opcode;
             }
             if (handle_pending_after > first_instr) {
-                printf("Pending calls deferred until %lu\n", DEFER_OFFSET());
+                printf("Pending calls deferred until %lu (current: %lu)\n", DEFER_OFFSET(), INSTR_OFFSET());
             }
             if (next_instr >= handle_pending_after) {
-                printf("Checking for pending calls: %lu > %lu?\n", INSTR_OFFSET(), DEFER_OFFSET());
+                printf("Checking for pending calls: %lu >= %lu?\n", INSTR_OFFSET(), DEFER_OFFSET());
                 /* Allow for subsequent jumps backwards in the bytecode */
                 handle_pending_after = first_instr;
                 if (_Py_atomic_load_relaxed(&pendingcalls_to_do)) {

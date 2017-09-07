@@ -2368,16 +2368,15 @@ error_injection_trace(PyObject *hook_args, PyFrameObject *frame,
     if (((PyObject *) frame->f_code) == target_code) {
         printf("Tracing frame of interest\n");
         frame->f_trace_opcodes = 1;
-        if (what == PyTrace_OPCODE && frame->f_lasti > target_offset) {
-            printf("Adding pending call after %d\n", frame->f_lasti);
+        if (what == PyTrace_OPCODE && frame->f_lasti >= target_offset) {
             Py_INCREF(callback);
+            PyEval_SetTrace(NULL, NULL);
+            printf("Adding pending call after %d\n", frame->f_lasti);
             if (Py_AddPendingCall(&_pending_callback, callback) < 0) {
                 printf("Failed to add pending call\n");
                 Py_DECREF(callback);
-                PyEval_SetTrace(NULL, NULL);
                 return -1;
             }
-            PyEval_SetTrace(NULL, NULL);
         }
     }
     return 0;
