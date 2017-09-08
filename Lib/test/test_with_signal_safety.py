@@ -85,15 +85,7 @@ class CheckSignalSafety(unittest.TestCase):
                 self.fail(f"Exception wasn't raised @{target_offset}")
 
 
-    def _test_asynchronous_cm(self):
-        # NOTE: this can't work, since asyncio is written in Python, and hence
-        # will always process pending calls at some point during the evaluation
-        # of __aenter__ and __aexit__
-        #
-        # So to handle that case, we need to some way to tell the event loop
-        # to convert pending call processing into calls to
-        # asyncio.get_event_loop().call_soon() instead of processing them
-        # immediately
+    def test_asynchronous_cm(self):
         class AsyncTrackingCM():
             def __init__(self):
                 self.enter_without_exit = None
@@ -106,6 +98,13 @@ class CheckSignalSafety(unittest.TestCase):
             async with tracking_cm:
                 1 + 1
             return
+        async def cushion():
+            await traced_coroutine()
+            # In case the last injected call spills over, we want the
+            # exception to be raised here instead of deep in the bowels of
+            # asyncio (which will probably lock up or something).
+            while True:
+                pass
         target_offset = -1
         max_offset = len(traced_coroutine.__code__.co_code) - 2
         loop = asyncio.get_event_loop()
@@ -113,10 +112,20 @@ class CheckSignalSafety(unittest.TestCase):
             target_offset += 1
             raise_after_offset(traced_coroutine, target_offset)
             try:
-                loop.run_until_complete(traced_coroutine())
-            except InjectedException:
-                # key invariant: if we entered the CM, we exited it
-                self.assertFalse(tracking_cm.enter_without_exit)
+                loop.run_until_complete(cushion())
+            except InjectedException as exc:
+                # key invariant: if we entered the CM, we exited it. Meaning:
+                # either __aexit__ ran fully, or else the exception was raised
+                # *inside* __aexit__.
+                tb = exc.__traceback__
+                while tb is not None:
+                    if tb.tb_frame.f_code is AsyncTrackingCM.__aexit__.__code__:
+                        # This was raised inside __aexit__
+                        break
+                    tb = tb.tb_next
+                else:
+                    # It wasn't raised inside __aexit__
+                    self.assertFalse(tracking_cm.enter_without_exit)
             else:
                 self.fail(f"Exception wasn't raised @{target_offset}")
 
