@@ -1009,6 +1009,40 @@ sys__deactivate_opcache(PyObject *module, PyObject *Py_UNUSED(ignored))
     return sys__deactivate_opcache_impl(module);
 }
 
+#if defined(PERPETUO_INSTRUMENT_GIL)
+
+PyDoc_STRVAR(sys__set_stall_counter__doc__,
+"_set_stall_counter($module, ptr, /)\n"
+"--\n"
+"\n"
+"Start instrumenting GIL stalls, via perpetuo.\n"
+"\n"
+"The integer is treated as a pointer to a unsigned 64-bit value, and arranges that it\n"
+"will be incremented once whenever the GIL is taken or dropped.");
+
+#define SYS__SET_STALL_COUNTER_METHODDEF    \
+    {"_set_stall_counter", (PyCFunction)sys__set_stall_counter, METH_O, sys__set_stall_counter__doc__},
+
+static PyObject *
+sys__set_stall_counter_impl(PyObject *module, unsigned long long ptr);
+
+static PyObject *
+sys__set_stall_counter(PyObject *module, PyObject *arg)
+{
+    PyObject *return_value = NULL;
+    unsigned long long ptr;
+
+    if (!_PyLong_UnsignedLongLong_Converter(arg, &ptr)) {
+        goto exit;
+    }
+    return_value = sys__set_stall_counter_impl(module, ptr);
+
+exit:
+    return return_value;
+}
+
+#endif /* defined(PERPETUO_INSTRUMENT_GIL) */
+
 #ifndef SYS_GETWINDOWSVERSION_METHODDEF
     #define SYS_GETWINDOWSVERSION_METHODDEF
 #endif /* !defined(SYS_GETWINDOWSVERSION_METHODDEF) */
@@ -1036,4 +1070,8 @@ sys__deactivate_opcache(PyObject *module, PyObject *Py_UNUSED(ignored))
 #ifndef SYS_GETANDROIDAPILEVEL_METHODDEF
     #define SYS_GETANDROIDAPILEVEL_METHODDEF
 #endif /* !defined(SYS_GETANDROIDAPILEVEL_METHODDEF) */
-/*[clinic end generated code: output=1d40b6af6e80cc71 input=a9049054013a1b77]*/
+
+#ifndef SYS__SET_STALL_COUNTER_METHODDEF
+    #define SYS__SET_STALL_COUNTER_METHODDEF
+#endif /* !defined(SYS__SET_STALL_COUNTER_METHODDEF) */
+/*[clinic end generated code: output=9f233f427e26875d input=a9049054013a1b77]*/

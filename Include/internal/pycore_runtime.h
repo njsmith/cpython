@@ -117,6 +117,19 @@ typedef struct pyruntimestate {
 
     struct _Py_unicode_runtime_ids unicode_ids;
 
+#ifdef PERPETUO_INSTRUMENT_GIL
+#ifdef EXPERIMENTAL_ISOLATED_SUBINTERPRETERS
+#error PERPETUO_INSTRUMENT_GIL and EXPERIMENTAL_ISOLATED_SUBINTERPRETERS are incompatible
+#endif
+#ifndef HAVE_STD_ATOMIC
+#error PERPETUO_INSTRUMENT_GIL requires stdatomic.h support
+#endif
+    // this should probably be inside the gilstate instead, but putting it there changes
+    // the struct layout and breaks py-spy's hard-coded knowledge of how to read these
+    // structs. So as long as this is an out-of-tree patch we'll keep it here where it's
+    // out of the way.
+    atomic_uint_least64_t* stall_counter;
+#endif
     // XXX Consolidate globals found via the check-c-globals script.
 } _PyRuntimeState;
 
@@ -124,6 +137,9 @@ typedef struct pyruntimestate {
     {.preinitialized = 0, .core_initialized = 0, .initialized = 0}
 /* Note: _PyRuntimeState_INIT sets other fields to 0/NULL */
 
+#ifdef PERPETUO_INSTRUMENT_GIL
+extern void _PyEval_SetStallCounter(atomic_uint_least64_t* counter);
+#endif
 
 PyAPI_DATA(_PyRuntimeState) _PyRuntime;
 

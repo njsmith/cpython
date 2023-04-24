@@ -95,6 +95,10 @@ _PyRuntimeState_Init_impl(_PyRuntimeState *runtime)
     }
     runtime->unicode_ids.next_index = unicode_next_index;
 
+#ifdef PERPETUO_INSTRUMENT_GIL
+    runtime->stall_counter = NULL;
+#endif
+
     return _PyStatus_OK();
 }
 

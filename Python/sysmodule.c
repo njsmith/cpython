@@ -2016,6 +2016,28 @@ sys__deactivate_opcache_impl(PyObject *module)
 }
 
 
+#ifdef PERPETUO_INSTRUMENT_GIL
+/*[clinic input]
+sys._set_stall_counter
+
+    ptr: unsigned_long_long
+    /
+
+Start instrumenting GIL stalls, so they can be detected by Perpetuo.
+
+The integer is treated as a pointer to a unsigned 64-bit value, and arranges that it
+will be incremented once whenever the GIL is taken or dropped.
+[clinic start generated code]*/
+
+static PyObject *
+sys__set_stall_counter_impl(PyObject *module, unsigned long long ptr)
+/*[clinic end generated code: output=9735f95561b61ea2 input=4ab454597eea720b]*/
+{
+    _PyRuntime.stall_counter = ptr;
+    Py_RETURN_NONE;
+}
+#endif
+
 static PyMethodDef sys_methods[] = {
     /* Might as well keep this in alphabetic order */
     SYS_ADDAUDITHOOK_METHODDEF
@@ -2071,6 +2093,7 @@ static PyMethodDef sys_methods[] = {
     SYS__DEACTIVATE_OPCACHE_METHODDEF
     SYS_GET_INT_MAX_STR_DIGITS_METHODDEF
     SYS_SET_INT_MAX_STR_DIGITS_METHODDEF
+    SYS__SET_STALL_COUNTER_METHODDEF
     {NULL,              NULL}           /* sentinel */
 };
 

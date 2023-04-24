@@ -1750,6 +1750,12 @@ main_loop:
            async I/O handler); see Py_AddPendingCall() and
            Py_MakePendingCalls() above. */
 
+#ifdef PERPETUO_INSTRUMENT_GIL
+        // checking eval_breaker is logically equivalent to dropping and then reaquiring
+        // the GIL for stall-checking purposes, because if someone else wanted the GIL
+        // here they *could* take it.
+        _gil_stall_counter_inc(2);
+#endif
         if (_Py_atomic_load_relaxed(eval_breaker)) {
             opcode = _Py_OPCODE(*next_instr);
             if (opcode != SETUP_FINALLY &&
