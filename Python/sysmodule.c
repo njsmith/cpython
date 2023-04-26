@@ -2093,7 +2093,9 @@ static PyMethodDef sys_methods[] = {
     SYS__DEACTIVATE_OPCACHE_METHODDEF
     SYS_GET_INT_MAX_STR_DIGITS_METHODDEF
     SYS_SET_INT_MAX_STR_DIGITS_METHODDEF
+#ifdef PERPETUO_INSTRUMENT_GIL
     SYS__SET_STALL_COUNTER_METHODDEF
+#endif
     {NULL,              NULL}           /* sentinel */
 };
 
