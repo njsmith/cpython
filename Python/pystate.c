@@ -125,6 +125,8 @@ init_runtime(_PyRuntimeState *runtime,
     runtime->unicode_ids.next_index = unicode_next_index;
     runtime->unicode_ids.lock = unicode_ids_mutex;
 
+    runtime->stall_counter = NULL;
+
     runtime->_initialized = 1;
 }
 

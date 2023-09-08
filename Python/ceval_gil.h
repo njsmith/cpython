@@ -97,6 +97,18 @@ static void _gil_initialize(struct _gil_runtime_state *gil)
     gil->interval = DEFAULT_INTERVAL;
 }
 
+static void _gil_stall_counter_inc(int amount) {
+    if (_PyRuntime.stall_counter) {
+// CPython's portable atomic wrappers don't wrap fetch-and-add. Realistically we should
+// be using the stdatomic.h wrappers everywhere at this point, though, so this is
+// probably fine.
+#ifndef HAVE_STD_ATOMIC
+#error Perpetuo GIL tracking requires stdatomic.h support
+#endif
+        atomic_fetch_add_explicit(_PyRuntime.stall_counter, amount, memory_order_relaxed);
+    }
+}
+
 static int gil_created(struct _gil_runtime_state *gil)
 {
     return (_Py_atomic_load_explicit(&gil->locked, _Py_memory_order_acquire) >= 0);
@@ -158,6 +170,9 @@ drop_gil(struct _ceval_runtime_state *ceval, struct _ceval_state *ceval2,
            holder variable so that our heuristics work. */
         _Py_atomic_store_relaxed(&gil->last_holder, (uintptr_t)tstate);
     }
+
+    // before dropping GIL, increment to mark us as idle
+    _gil_stall_counter_inc(1);
 
     MUTEX_LOCK(gil->mutex);
     _Py_ANNOTATE_RWLOCK_RELEASED(&gil->locked, /*is_write=*/1);
@@ -284,6 +299,8 @@ _ready:
     /* We now hold the GIL */
     _Py_atomic_store_relaxed(&gil->locked, 1);
     _Py_ANNOTATE_RWLOCK_ACQUIRED(&gil->locked, /*is_write=*/1);
+    // now that we have the GIL, increment to mark us as active
+    _gil_stall_counter_inc(1);
 
     if (tstate != (PyThreadState*)_Py_atomic_load_relaxed(&gil->last_holder)) {
         _Py_atomic_store_relaxed(&gil->last_holder, (uintptr_t)tstate);

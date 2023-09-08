@@ -1347,6 +1347,7 @@ eval_frame_handle_pending(PyThreadState *tstate)
     }
 
 #define CHECK_EVAL_BREAKER() \
+    _gil_stall_counter_inc(2); \
     _Py_CHECK_EMSCRIPTEN_SIGNALS_PERIODICALLY(); \
     if (_Py_atomic_load_relaxed_int32(eval_breaker)) { \
         goto handle_eval_breaker; \

@@ -1980,6 +1980,24 @@ sys_getandroidapilevel_impl(PyObject *module)
 }
 #endif   /* ANDROID_API_LEVEL */
 
+/*[clinic input]
+sys._set_stall_counter
+    ptr: unsigned_long_long
+    /
+Start instrumenting GIL stalls, so they can be detected by Perpetuo.
+
+The integer is treated as a pointer to a unsigned 64-bit value, and arranges that it
+will be incremented once whenever the GIL is taken or dropped.
+[clinic start generated code]*/
+
+static PyObject *
+sys__set_stall_counter_impl(PyObject *module, unsigned long long ptr)
+/*[clinic end generated code: output=9735f95561b61ea2 input=bb25e70cadda4c6d]*/
+{
+    _PyRuntime.stall_counter = (atomic_uint_least64_t*) ptr;
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef sys_methods[] = {
     /* Might as well keep this in alphabetic order */
     SYS_ADDAUDITHOOK_METHODDEF
@@ -2036,6 +2054,7 @@ static PyMethodDef sys_methods[] = {
     SYS_UNRAISABLEHOOK_METHODDEF
     SYS_GET_INT_MAX_STR_DIGITS_METHODDEF
     SYS_SET_INT_MAX_STR_DIGITS_METHODDEF
+    SYS__SET_STALL_COUNTER_METHODDEF
     {NULL, NULL}  // sentinel
 };
 
