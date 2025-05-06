@@ -450,6 +450,8 @@ init_runtime(_PyRuntimeState *runtime,
 
     runtime->unicode_state.ids.next_index = unicode_next_index;
 
+    runtime->stall_counter = NULL;
+
     runtime->_initialized = 1;
 }
 

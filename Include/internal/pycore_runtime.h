@@ -184,6 +184,12 @@ typedef struct pyruntimestate {
 
     /* PyInterpreterState.interpreters.main */
     PyInterpreterState _main_interpreter;
+
+    // this should probably be inside the gilstate instead, but putting it there changes
+    // the struct layout and breaks py-spy's hard-coded knowledge of how to read these
+    // structs. So as long as this is an out-of-tree patch we'll keep it here at the end
+    // of this struct where it's out of the way.
+    atomic_uint_least64_t* stall_counter;
 } _PyRuntimeState;
 
 

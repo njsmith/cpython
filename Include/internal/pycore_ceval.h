@@ -155,6 +155,8 @@ extern PyObject* _Py_MakeCoro(PyFunctionObject *func);
 
 extern int _Py_HandlePending(PyThreadState *tstate);
 
+extern void _Py_gil_stall_counter_inc(int);
+
 extern PyObject * _PyEval_GetFrameLocals(void);
 
 
